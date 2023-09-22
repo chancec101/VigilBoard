@@ -7,4 +7,5 @@ VigilBoard is more geared towards healthcare database systems that may not be up
 VigilBoard was created by following the Unclassified DevSecOpsTools Fundamentals Guidebook PDF file found on this repository in order to ensure proper security at every phase throughout the software development lifecycle.
 
 ---VigilBoard Credits---
+
 VigilBoard is a Cybersecurity Capstone collaborative effort between Chance Currie, William Mahoney, Issac Bamidele and David Abbot.
