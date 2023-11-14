@@ -1,11 +1,20 @@
-import tkinter as tk #using tkinter as our gui
+import tkinter as tk                #using tkinter as our gui
 from tkinter import messagebox
 from tkinter import Scrollbar
-import nmap #nmap for port scanning
+import nmap                         #nmap for port scanning
 import socket
+from datetime import datetime
 from urllib.parse import urlparse
 from threading import Thread
-import subprocess #used for nikto scanning
+import subprocess                   #used for nikto scanning
+
+#function that will make a log file named "scan_log_{date} {time}", put the text box info inside of it, and place it inside of the same file path that this program is in
+def save_to_file(content, prefix="scan_log_"):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H_%M_%S")
+    filename = f"{prefix}{timestamp}.txt"
+    
+    with open(filename, "w") as file:
+        file.write(content)
 
 ###################################################################################################################
 #                                               nmap functionality                                                #
@@ -40,7 +49,16 @@ def check_security():
 
         #change the button text
         test_button.config(text="Scanning target")
-        test_button.config(state="disabled")  # Disable the button
+        test_button.config(state="disabled")  #disable the button
+
+        result_text.config(state="normal")
+
+        t1 = datetime.now()
+        result_text.insert("end", "Scan conducted on: ")
+        result_text.insert("end", t1)
+        result_text.insert("end", "\n\nRunning nmap scan...\n")
+
+        result_text.config(state="disabled")
 
         #perform a quick scan through nmap
         result = nm.scan(hosts=ip_address, arguments='-O -sV -F')
@@ -49,7 +67,7 @@ def check_security():
         os_guess = result['scan'][ip_address]['osmatch']
 
         result_text.config(state="normal")
-        result_text.delete("1.0", "end")
+        #result_text.delete("1.0", "end")
         if open_ports:
             result_text.insert("end", f"Open ports:\n{', '.join(map(str, open_ports))}")
             result_text.insert("end", "\n")
@@ -63,10 +81,10 @@ def check_security():
                 os_name = os['name']
                 os_accuracy = os['accuracy']
                 result_text.insert("end", f"  OS Name: {os_name}, Accuracy: {os_accuracy}\n")
-            
+
         else:
             result_text.insert("end", "No open ports found.")
-        #result_text.config(state="disabled")
+        result_text.config(state="disabled")
 
         ###################################################################################################################
         #                                               nikto functionality                                               #
@@ -83,32 +101,41 @@ def check_security():
         #for chance testing path: C:\\Users\\currib\\Desktop\\UNT Code\\VigilBoardProj\\Nikto\\nikto\\program\\nikto.pl
         nikto_command = ["perl", "C:\\Users\\currib\\Desktop\\UNT Code\\VigilBoardProj\\Nikto\\nikto\\program\\nikto.pl", "-h", ip_address, "-p", open_ports_list]
         
-        result_text.config(state="normal")  # Enable the text box
+        result_text.config(state="normal")    #enable the text box
         result_text.insert("end", "\nRunning Nikto scan...\n")
-        result_text.config(state="disabled")  # Disable the text box
+        result_text.config(state="disabled")  #disable the text box
 
         #execute the Nikto command
         result = subprocess.run(nikto_command, capture_output=True, text=True)
 
-        #check the exit code and print Nikto output
+        #check the exit code and print Nikto output in the console
         print("Nikto exit code:", result.returncode)
         print("Nikto stdout:", result.stdout)
         print("Nikto stderr:", result.stderr)
 
         if result.returncode == 0:
-            result_text.config(state="normal")  # Enable the text box
+            result_text.config(state="normal")  #enable the text box
             result_text.insert("end", "Nikto scan completed successfully.\n")
 
             #display Nikto scan results
             nikto_output = result.stdout
             result_text.insert("end", "Nikto Scan Results:\n")
             result_text.insert("end", nikto_output)
-            result_text.config(state="disabled")  # Disable the text box
         else:
-            result_text.config(state="normal")  # Enable the text box
+            result_text.config(state="normal")  #enable the text box
             result_text.insert("end", "Nikto scan failed.\n")
             result_text.insert("end", result.stderr)
-            result_text.config(state="disabled")  # Disable the text box
+
+        result_text.insert("end", "\n\nSecurity scan has been completed.\n")
+
+        #writing the text box to a log file
+
+        result_text.config(state="normal")
+    
+        # Save the content of the text box to a file
+        save_to_file(result_text.get("1.0", "end-1c"))
+
+        result_text.config(state="disabled")
 
         #change the button text back 
         test_button.config(text="Perform Security Test")
@@ -119,6 +146,8 @@ def check_security():
     scan_thread.start()
 
 def close_window():
+    #save the content of the text box to a file before closing the window
+    save_to_file(result_text.get("1.0", "end-1c"))
     root.destroy()
 
 ###################################################################################################################
