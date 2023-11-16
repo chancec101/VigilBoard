@@ -6,7 +6,11 @@ import socket
 from datetime import datetime
 from urllib.parse import urlparse
 from threading import Thread
-import subprocess                   #used for nikto scanning
+import os
+
+###################################################################################################################
+#                                               log/helper functions                                              #
+###################################################################################################################
 
 #function that will make a log file named "scan_log_{date} {time}", put the text box info inside of it, and place it inside of the same file path that this program is in
 def save_to_file(content, prefix="scan_log_"):
@@ -16,12 +20,30 @@ def save_to_file(content, prefix="scan_log_"):
     with open(filename, "w") as file:
         file.write(content)
 
+#function that will pop open an explorer window with your log files there when you press "View Logs"
+def view_logs():
+    #get the directory of the currently running script
+    script_directory = os.path.dirname(os.path.abspath(__file__))
+    
+    #open the file explorer at the script directory
+    os.system(f'explorer {script_directory}')
+
+#function to check if the content of the text box is empty
+def is_text_box_empty():
+    return result_text.compare("end-1c", "==", "1.0")    
+
 ###################################################################################################################
 #                                               nmap functionality                                                #
 ###################################################################################################################
 
 #function will validate a given url or ip address and then run a simple port scan 
 def check_security():
+
+    #ensures that there is no text when starting a scan, and if there is text in the box, it will be cleared in order to show the output of a fresh new scan
+    result_text.config(state="normal")
+    result_text.delete("1.0", "end")
+    result_text.config(state="disabled")
+
     def perform_security_scan():
         input_text = url_or_ip_entry.get()
 
@@ -84,56 +106,20 @@ def check_security():
 
         else:
             result_text.insert("end", "No open ports found.")
-        result_text.config(state="disabled")
-
-        ###################################################################################################################
-        #                                               nikto functionality                                               #
-        ###################################################################################################################
-
-        #perform a simple scan using nikto
-        #list variable that will attempt to scan all of the open ports found. If no open ports were found, then make the list only contain port 80 just to try something
-        if open_ports:
-            open_ports_list = ",".join(map(str, open_ports))
-        else:
-            open_ports_list = "80"
-
-        #for the following nikto_command variable, you have to set the path of where nikto.pl is on your host system. I want to try to change this but as long as it runs it should be okay for now.
-        #for chance testing path: C:\\Users\\currib\\Desktop\\UNT Code\\VigilBoardProj\\Nikto\\nikto\\program\\nikto.pl
-        nikto_command = ["perl", "C:\\Users\\currib\\Desktop\\UNT Code\\VigilBoardProj\\Nikto\\nikto\\program\\nikto.pl", "-h", ip_address, "-p", open_ports_list]
-        
-        result_text.config(state="normal")    #enable the text box
-        result_text.insert("end", "\nRunning Nikto scan...\n")
-        result_text.config(state="disabled")  #disable the text box
-
-        #execute the Nikto command
-        result = subprocess.run(nikto_command, capture_output=True, text=True)
-
-        #check the exit code and print Nikto output in the console
-        print("Nikto exit code:", result.returncode)
-        print("Nikto stdout:", result.stdout)
-        print("Nikto stderr:", result.stderr)
-
-        if result.returncode == 0:
-            result_text.config(state="normal")  #enable the text box
-            result_text.insert("end", "Nikto scan completed successfully.\n")
-
-            #display Nikto scan results
-            nikto_output = result.stdout
-            result_text.insert("end", "Nikto Scan Results:\n")
-            result_text.insert("end", nikto_output)
-        else:
-            result_text.config(state="normal")  #enable the text box
-            result_text.insert("end", "Nikto scan failed.\n")
-            result_text.insert("end", result.stderr)
 
         result_text.insert("end", "\n\nSecurity scan has been completed.\n")
+
+        t2 = datetime.now()
+        result_text.insert("end", "Scan completed at: ")
+        result_text.insert("end", t2)
 
         #writing the text box to a log file
 
         result_text.config(state="normal")
     
-        # Save the content of the text box to a file
-        save_to_file(result_text.get("1.0", "end-1c"))
+        #save the content of the text box to a file only if it's not empty
+        if not is_text_box_empty():
+            save_to_file(result_text.get("1.0", "end-1c"))
 
         result_text.config(state="disabled")
 
@@ -146,8 +132,6 @@ def check_security():
     scan_thread.start()
 
 def close_window():
-    #save the content of the text box to a file before closing the window
-    save_to_file(result_text.get("1.0", "end-1c"))
     root.destroy()
 
 ###################################################################################################################
@@ -173,6 +157,10 @@ url_or_ip_entry.grid(row=1, column=1, padx=10, pady=10)
 #create a button to perform the security test
 test_button = tk.Button(root, text="Perform Security Test", command=check_security)
 test_button.grid(row=2, column=0, columnspan=2, padx=10, pady=10)
+
+#create a button to view logs
+view_logs_button = tk.Button(root, text="View Logs", command=view_logs)
+view_logs_button.grid(row=2, column=1, columnspan=2, padx=10, pady=10)
 
 #create a text box to display port scan results
 result_text = tk.Text(root, height=20, width=80, state="disabled")
