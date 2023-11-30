@@ -7,16 +7,23 @@ from datetime import datetime
 from urllib.parse import urlparse
 from threading import Thread
 import os
-
+global scan_thread
 ###################################################################################################################
 #                                               log/helper functions                                              #
 ###################################################################################################################
 
-#function that will make a log file named "scan_log_{date} {time}", put the text box info inside of it, and place it inside of the same file path that this program is in
-def save_to_file(content, prefix="scan_log_"):
-    timestamp = datetime.now().strftime("%Y-%m-%d %H_%M_%S")
-    filename = f"{prefix}{timestamp}.txt"
-    
+#function that will make a log file named "scanlog{date} {time}" and put the text box info inside of it
+#it will then either create a new log folder to place logs into, or it will detect a log folder exists and put the log file into it
+def save_to_file(content, prefix="scanlog"):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H%M%S")
+    log_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "VigilBoard_Scan_Logs")
+
+    # Check if the log folder exists, and create it if not
+    if not os.path.exists(log_folder):
+        os.makedirs(log_folder)
+
+    filename = os.path.join(log_folder, f"{prefix}{timestamp}.txt")
+
     with open(filename, "w") as file:
         file.write(content)
 
@@ -129,15 +136,13 @@ def check_security():
                 os_name = os['name']
                 os_accuracy = os['accuracy']
                 result_text.insert("end", f"  OS Name: {os_name}, Accuracy: {os_accuracy}\n")
-            if selected_scan == "nmapVulners":
+            if selected_scan == "nmapVulners" or selected_scan == "nmapVuln":
                 for port, port_info in result['scan'][ip_address]['tcp'].items():
                     result_text.insert("end", f"{port}/tcp   {port_info['state']}  {port_info['name']}\n")
                     if 'script' in port_info and 'vulners' in port_info['script']:
                         result_text.insert("end", f"| vulners:\n")
                         for vuln in port_info['script']['vulners'].split('\n'):
                             result_text.insert("end", f"|   {vuln}\n")
-            #if selected_scan == "nmapVuln":
-                #**************need to figure out output parameters to format correctly on output
         else:
             result_text.insert("end", "No open ports found.")
 
@@ -196,7 +201,6 @@ nmap_vulners_radio = tk.Radiobutton(root, text="Vulners Scripting Scan", variabl
 nmap_vulners_radio.grid(row=2, column=1, padx=10, pady=10)
 nmap_vuln_radio = tk.Radiobutton(root, text="Vuln Scripting Scan", variable=scan_var, value="nmapVuln")
 nmap_vuln_radio.grid(row=2, column=2, padx=10, pady=10)
-
 
 #create a button to perform the security test
 test_button = tk.Button(root, text="Perform Security Test", command=check_security)
