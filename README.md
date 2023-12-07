@@ -8,4 +8,4 @@ VigilBoard was created by following the Unclassified DevSecOpsTools Fundamentals
 
 ---VigilBoard Credits---
 
-VigilBoard is a Cybersecurity Capstone collaborative effort between Chance Currie, William Mahoney, Issac Bamidele and David Abbot.
+VigilBoard is a Cybersecurity Capstone collaborative effort between Chance Currie, William Mahoney, Isaac Bamidele and David Abbot.
