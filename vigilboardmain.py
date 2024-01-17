@@ -59,7 +59,11 @@ def check_security():
         messagebox.showinfo("Select Scan Option", "A scan option must be selected.")
         return
 
+    ##########################################################
+    #               SCAN OPTION 1: NMAP SCAN                 #
+    ##########################################################
 
+    #function that will perform only the port scanning necessary when the first option is selected
     def perform_security_scan():
         input_text = url_or_ip_entry.get()
 
@@ -94,30 +98,143 @@ def check_security():
         t1 = datetime.now()
         result_text.insert("end", "Scan conducted on: ")
         result_text.insert("end", t1)
-        result_text.insert("end", "\n\nRunning nmap scan...\n")
+        result_text.insert("end", "\nTarget IP: ")
+        result_text.insert("end", ip_address)
+
+        #check if the input is a URL and display it along with the IP. If there is no URL associated with it, then it will ignore displaying the URL
+        if parsed_url.netloc:
+            result_text.insert("end", "\nTarget URL: ")
+            result_text.insert("end", parsed_url.netloc)
+
+        result_text.insert("end", "\n\nThis scan can take a few minutes, thank you for your patience.")
+        result_text.insert("end", "\n\nRunning nmap scan...\n\n")
 
         result_text.config(state="disabled")
 
         #utilize the scan that the user chose
         if selected_scan == "performScan":
             result = nm.scan(hosts=ip_address, arguments='-O -sV -F')
-        elif selected_scan == "nmapVulners":
-            result = nm.scan(hosts=ip_address, arguments='-O -sV -F --script vulners')
-        #provides warning to user that vuln scipt is invasive/disruptive
-        elif selected_scan == "nmapVuln":
-            confirmed = messagebox.askyesno("Confirmation", "Running the vuln script scan may be disruptive and crash the target. Are you sure you want to continue?")
-            #cancel the scan if the user selects NO
-            if not confirmed:
-                result_text.config(state="normal")
-                result_text.insert("end", "\nScan canceled by user.\n")
-                result_text.config(state="disabled")
-                test_button.config(text="Perform Security Test")
-                test_button.config(state="normal")
-                return
-            elif confirmed:
-                result = nm.scan(hosts=ip_address, arguments='-O -sV -F --script vuln')
 
-        open_ports = result['scan'][ip_address]['tcp'].keys()
+        #check if the 'scan' and 'tcp' keys exist in the result dictionary
+        if 'scan' in result and ip_address in result['scan'] and 'tcp' in result['scan'][ip_address]:
+            open_ports = result['scan'][ip_address]['tcp'].keys()
+        else:
+            #handle the case when the expected keys are not present
+            result_text.config(state="normal")
+            result_text.insert("end", "Error in scanning. Check the input and try again, otherwise there may be no detectable open ports.\n")
+            result_text.config(state="disabled")
+            test_button.config(text="Perform Security Test")
+            test_button.config(state="normal")
+            return
+
+        os_guess = result['scan'][ip_address]['osmatch']
+
+        result_text.config(state="normal")
+
+        #get the results from the scans
+        if open_ports:
+            result_text.insert("end", f"Open ports:\n{', '.join(map(str, open_ports))}")
+            result_text.insert("end", "\n")
+            for port in open_ports:
+                service = result['scan'][ip_address]['tcp'][port]['name']
+                product = result['scan'][ip_address]['tcp'][port]['product']
+                version = result['scan'][ip_address]['tcp'][port]['version']
+                result_text.insert("end", f"Port {port}: Service={service}, Product={product}, Version={version}\n")
+            result_text.insert("end", "OS Fingerprinting Results:\n")
+            for os in os_guess:
+                os_name = os['name']
+                os_accuracy = os['accuracy']
+                result_text.insert("end", f"  OS Name: {os_name}, Accuracy: {os_accuracy}\n")
+        else:
+            result_text.insert("end", "No open ports found.")
+
+        result_text.insert("end", "\n\nSecurity scan has been completed.\n")
+
+        t2 = datetime.now()
+        result_text.insert("end", "Scan completed at: ")
+        result_text.insert("end", t2)
+
+        #writing the text box to a log file
+
+        result_text.config(state="normal")
+    
+        #save the content of the text box to a file only if it's not empty
+        if not is_text_box_empty():
+            save_to_file(result_text.get("1.0", "end-1c"))
+
+        result_text.config(state="disabled")
+
+        #change the button text back 
+        test_button.config(text="Perform Security Test")
+        test_button.config(state="normal")  #re-enable the button
+
+    ##########################################################
+    #               SCAN OPTION 2: VULNERS SCAN              #
+    ##########################################################
+
+    #function that will run the vulners scan, which is option 2
+    def perform_vulners_scan():
+        input_text = url_or_ip_entry.get()
+
+        #check if it's a URL or IP address
+        parsed_url = urlparse(input_text)
+
+        if parsed_url.netloc:
+            #the input is a URL so resolve to an IP address
+            try:
+                ip_address = socket.gethostbyname(parsed_url.netloc)
+            except socket.gaierror:
+                messagebox.showerror("Security Test", "Invalid URL or IPv4 address. For URL, ensure you include http:// or https// in the URL.")
+                return
+        else:
+            #the input is an IPv4 address so verify it
+            try:
+                socket.inet_pton(socket.AF_INET, input_text)
+                ip_address = input_text
+            except socket.error:
+                messagebox.showerror("Security Test", "Invalid URL or IPv4 address. For URL, ensure you include http:// or https// in the URL.")
+                return
+
+        #create an nmap PortScanner instance
+        nm = nmap.PortScanner()
+
+        #change the button text
+        test_button.config(text="Scanning target")
+        test_button.config(state="disabled")  #disable the button
+
+        result_text.config(state="normal")
+
+        t1 = datetime.now()
+        result_text.insert("end", "Scan conducted on: ")
+        result_text.insert("end", t1)
+        result_text.insert("end", "\nTarget IP: ")
+        result_text.insert("end", ip_address)
+
+        #check if the input is a URL and display it along with the IP. If there is no URL associated with it, then it will ignore displaying the URL
+        if parsed_url.netloc:
+            result_text.insert("end", "\nTarget URL: ")
+            result_text.insert("end", parsed_url.netloc)
+
+        result_text.insert("end", "\n\nThis scan can take a few minutes, thank you for your patience.")
+        result_text.insert("end", "\n\nRunning nmap scan...\n\n")
+
+        result_text.config(state="disabled")
+
+        if selected_scan == "nmapVulners":
+            result = nm.scan(hosts=ip_address, arguments='-O -sV -F --script vulners')
+
+        #check if the 'scan' and 'tcp' keys exist in the result dictionary
+        if 'scan' in result and ip_address in result['scan'] and 'tcp' in result['scan'][ip_address]:
+            open_ports = result['scan'][ip_address]['tcp'].keys()
+        else:
+            #handle the case when the expected keys are not present
+            result_text.config(state="normal")
+            result_text.insert("end", "\nError in scanning. Check the input and try again, otherwise there may be no detectable open ports.\n")
+            result_text.config(state="disabled")
+            test_button.config(text="Perform Security Test")
+            test_button.config(state="normal")
+            return
+
         os_guess = result['scan'][ip_address]['osmatch']
 
         result_text.config(state="normal")
@@ -166,9 +283,151 @@ def check_security():
         test_button.config(text="Perform Security Test")
         test_button.config(state="normal")  #re-enable the button
 
+    ##########################################################
+    #               SCAN OPTION 3: VULN SCAN                 #
+    ##########################################################
+
+    #function that will run the vulnerability scan, or option 3, when selected
+    def perform_vuln_scan():
+        input_text = url_or_ip_entry.get()
+
+        #check if it's a URL or IP address
+        parsed_url = urlparse(input_text)
+
+        if parsed_url.netloc:
+            #the input is a URL so resolve to an IP address
+            try:
+                ip_address = socket.gethostbyname(parsed_url.netloc)
+            except socket.gaierror:
+                messagebox.showerror("Security Test", "Invalid URL or IPv4 address. For URL, ensure you include http:// or https// in the URL.")
+                return
+        else:
+            #the input is an IPv4 address so verify it
+            try:
+                socket.inet_pton(socket.AF_INET, input_text)
+                ip_address = input_text
+            except socket.error:
+                messagebox.showerror("Security Test", "Invalid URL or IPv4 address. For URL, ensure you include http:// or https// in the URL.")
+                return
+
+        #create an nmap PortScanner instance
+        nm = nmap.PortScanner()
+
+        #change the button text
+        test_button.config(text="Scanning target")
+        test_button.config(state="disabled")  #disable the button
+
+        result_text.config(state="normal")
+
+        t1 = datetime.now()
+        result_text.insert("end", "Scan conducted on: ")
+        result_text.insert("end", t1)
+        result_text.insert("end", "\nTarget IP: ")
+        result_text.insert("end", ip_address)
+
+        #check if the input is a URL and display it along with the IP. If there is no URL associated with it, then it will ignore displaying the URL
+        if parsed_url.netloc:
+            result_text.insert("end", "\nTarget URL: ")
+            result_text.insert("end", parsed_url.netloc)
+
+        result_text.insert("end", "\n\nThis scan can take a few minutes, thank you for your patience.")
+        result_text.insert("end", "\n\nRunning nmap scan...\n\n")
+
+        result_text.config(state="disabled")
+
+        if selected_scan == "nmapVuln":
+            confirmed = messagebox.askyesno("Confirmation", "Running the vuln script scan may be disruptive and crash the target. Are you sure you want to continue?")
+            #cancel the scan if the user selects NO
+            if not confirmed:
+                result_text.config(state="normal")
+                result_text.insert("end", "\nScan canceled by user.\n")
+                result_text.config(state="disabled")
+                test_button.config(text="Perform Security Test")
+                test_button.config(state="normal")
+                return
+            elif confirmed:
+                result = nm.scan(hosts=ip_address, arguments='-O -sV -F --script vuln')
+
+        #check if the 'scan' and 'tcp' keys exist in the result dictionary
+        if 'scan' in result and ip_address in result['scan'] and 'tcp' in result['scan'][ip_address]:
+            open_ports = result['scan'][ip_address]['tcp'].keys()
+        else:
+            #handle the case when the expected keys are not present
+            result_text.config(state="normal")
+            result_text.insert("end", "Error in scanning. Check the input and try again, otherwise there may be no detectable open ports.\n")
+            result_text.config(state="disabled")
+            test_button.config(text="Perform Security Test")
+            test_button.config(state="normal")
+            return
+
+        os_guess = result['scan'][ip_address]['osmatch']
+
+        result_text.config(state="normal")
+
+        #get the results from the scans
+        if open_ports:
+            result_text.insert("end", f"Open ports:\n{', '.join(map(str, open_ports))}")
+            result_text.insert("end", "\n")
+            for port in open_ports:
+                service = result['scan'][ip_address]['tcp'][port]['name']
+                product = result['scan'][ip_address]['tcp'][port]['product']
+                version = result['scan'][ip_address]['tcp'][port]['version']
+                result_text.insert("end", f"Port {port}: Service={service}, Product={product}, Version={version}\n")
+            result_text.insert("end", "OS Fingerprinting Results:\n")
+            for os in os_guess:
+                os_name = os['name']
+                os_accuracy = os['accuracy']
+                result_text.insert("end", f"  OS Name: {os_name}, Accuracy: {os_accuracy}\n")
+            if selected_scan == "nmapVulners" or selected_scan == "nmapVuln":
+                for port, port_info in result['scan'][ip_address]['tcp'].items():
+                    result_text.insert("end", f"{port}/tcp   {port_info['state']}  {port_info['name']}\n")
+                    if 'script' in port_info and 'vulners' in port_info['script']:
+                        result_text.insert("end", f"| vulners:\n")
+                        for vuln in port_info['script']['vulners'].split('\n'):
+                            result_text.insert("end", f"|   {vuln}\n")
+        else:
+            result_text.insert("end", "No open ports found.")
+
+        result_text.insert("end", "\n\nSecurity scan has been completed.\n")
+
+        t2 = datetime.now()
+        result_text.insert("end", "Scan completed at: ")
+        result_text.insert("end", t2)
+
+        #writing the text box to a log file
+
+        result_text.config(state="normal")
+    
+        #save the content of the text box to a file only if it's not empty
+        if not is_text_box_empty():
+            save_to_file(result_text.get("1.0", "end-1c"))
+
+        result_text.config(state="disabled")
+
+        #change the button text back 
+        test_button.config(text="Perform Security Test")
+        test_button.config(state="normal")  #re-enable the button
+
+
     #use a thread to keep the GUI responsive
-    scan_thread = Thread(target=perform_security_scan)
-    scan_thread.start()
+    #mapping between scan types and functions
+    scan_functions = {
+        "performScan": perform_security_scan,
+        "nmapVulners": perform_vulners_scan,
+        "nmapVuln": perform_vuln_scan,
+    }
+
+    #use the selected scan type to get the corresponding function
+    selected_function = scan_functions.get(selected_scan)
+
+    #check if a valid function is found
+    if selected_function:
+        #create a thread with the selected function
+        scan_thread = Thread(target=selected_function)
+        scan_thread.start()
+    else:
+        #handle the case when an invalid scan type is selected
+        messagebox.showerror("Invalid Scan Type", "Invalid scan type selected.")
 
 def close_window():
     root.destroy()
