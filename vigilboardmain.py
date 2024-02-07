@@ -11,16 +11,19 @@ import os
 import re
 import json
 
-###################################################################################################################
-#                                               log/helper functions                                              #
-###################################################################################################################
-
-# Global variable
+# Global variables
 SCAN_TYPE_NAMES = {
     "performScan": "Basic Security Scan",
     "nmapVulners": "Vulners Scan",
     "nmapVuln": "Vulnerability Scan"
 }
+
+scan_thread = None
+result_text = None
+
+###################################################################################################################
+#                                               log/helper functions                                              #
+###################################################################################################################
 
 #function that will make a log file named "scanlog{date} {time}" and put the text box info inside of it
 #it will then either create a new log folder to place logs into, or it will detect a log folder exists and put the log file into it
@@ -49,14 +52,36 @@ def view_logs():
 def is_text_box_empty():
     return result_text.compare("end-1c", "==", "1.0")
 
-# Global variables
-scan_thread = None
-result_text = None
+#######################################
+#         HTML Website Functions      #
+#######################################
 
 # Function to save scan result to HTML file
 def save_to_html(content, filename="scan_result.html"):
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    log_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "VigilBoard_HTML_Logs")
+
+    # Check if the log folder exists, and create it if not
+    if not os.path.exists(log_folder):
+        os.makedirs(log_folder)
+
+    filename = os.path.join(log_folder, f"{filename}_{timestamp}.html")
+
     with open(filename, "w") as file:
         file.write(content)
+
+# Function to open the directory containing HTML logs
+def view_html_logs():
+    # Get the directory of the HTML logs
+    html_logs_directory = os.path.join(os.path.dirname(os.path.abspath(__file__)), "VigilBoard_HTML_Logs")
+    
+    # Check if the directory exists
+    if os.path.exists(html_logs_directory):
+        # Open the file explorer at the HTML logs directory
+        os.system(f'explorer {html_logs_directory}')
+    else:
+        # Display a message if the directory does not exist
+        messagebox.showinfo("HTML Logs", "No HTML logs found.")
 
 def parse_scan_results(scan_result):
     parsed_results = []
@@ -595,6 +620,10 @@ test_button.grid(row=3, column=0, columnspan=2, padx=10, pady=10)
 #create a button to view logs
 view_logs_button = tk.Button(root, text="View Logs", command=view_logs)
 view_logs_button.grid(row=3, column=1, columnspan=2, padx=10, pady=10)
+
+# Create the "View HTML Logs" button
+view_html_logs_button = tk.Button(root, text="View HTML Logs", command=view_html_logs)
+view_html_logs_button.grid(row=3, column=2, padx=10, pady=10)
 
 #create a text box to display port scan results
 result_text = tk.Text(root, height=20, width=80, state="disabled")
