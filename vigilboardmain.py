@@ -37,7 +37,7 @@ def view_logs():
 
 #function to check if the content of the text box is empty
 def is_text_box_empty():
-    return result_text.compare("end-1c", "==", "1.0")    
+    return result_text.compare("end-1c", "==", "1.0")
 
 ###################################################################################################################
 #                                               nmap functionality                                                #
