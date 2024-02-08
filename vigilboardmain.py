@@ -56,18 +56,34 @@ def is_text_box_empty():
 #         HTML Website Functions      #
 #######################################
 
-# Function to save scan result to HTML file
+# Function to save scan result to HTML file for instant viewing on a web browser upon completion of a scan and ensures the most updated HTML information is displayed
 def save_to_html(content, filename="scan_result.html"):
+     # Define the path to the HTML file in the same directory as the script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    html_file_path = os.path.join(script_dir, filename)
+
+    # Write the content to the HTML file, overwriting any existing content
+    with open(html_file_path, "w") as file:
+        file.write(content)
+
+# Function that will save the scan results to an HTML file and store it as a unique HTML file log
+def save_to_html_log(content, prefix="html_log"):
+    # Generate a timestamp for the unique filename
     timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+
+    # Define the directory for HTML logs
     log_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "VigilBoard_HTML_Logs")
 
     # Check if the log folder exists, and create it if not
     if not os.path.exists(log_folder):
         os.makedirs(log_folder)
 
-    filename = os.path.join(log_folder, f"{filename}_{timestamp}.html")
+    # Define the filename with timestamp
+    log_filename = f"{prefix}_{timestamp}.html"
+    log_file_path = os.path.join(log_folder, log_filename)
 
-    with open(filename, "w") as file:
+    # Write the content to the HTML log file
+    with open(log_file_path, "w") as file:
         file.write(content)
 
 # Function to open the directory containing HTML logs
@@ -112,12 +128,16 @@ def generate_html_content(target_ip, target_url, scan_start_time, scan_finish_ti
     # Extract date portion from scan start time
     scan_date = scan_start_time.strftime("%Y-%m-%d")
 
+    # Format scan start time and finish time to display only the time portion
+    scan_start_time_formatted = scan_start_time.strftime("%H:%M:%S")  
+    scan_finish_time_formatted = scan_finish_time.strftime("%H:%M:%S")
+
     # Generate HTML content
     html_content = f"""
     <h1>Security Scan Results</h1>
     <p>Scan conducted on: {scan_date}</p>
-    <p>Scan Start Time: {scan_start_time.strftime('%H:%M:%S.%f')}</p>
-    <p>Scan Finish Time: {scan_finish_time.strftime('%H:%M:%S.%f')}</p>
+    <p>Scan Start Time: {scan_start_time_formatted}</p>
+    <p>Scan Finish Time: {scan_finish_time_formatted}</p>
     <p>Scan Elapsed Time: {scan_elapsed_time}</p>
     <p>Target IP: {target_ip}</p>
     <p>Target URL: {target_url}</p>
@@ -170,7 +190,7 @@ def on_scan_complete(scan_result, scan_start_time, scan_finish_time):
     if 'scan' in scan_result and target_ip in scan_result['scan'] and 'osmatch' in scan_result['scan'][target_ip]:
         os_guess = scan_result['scan'][target_ip]['osmatch']
 
-     # Fetch user-friendly scan type name
+    # Fetch user-friendly scan type name
     scan_type = SCAN_TYPE_NAMES.get(scan_var.get(), "Unknown Scan")
 
     # Generate HTML content
@@ -178,9 +198,12 @@ def on_scan_complete(scan_result, scan_start_time, scan_finish_time):
     
     # Save HTML content to file
     save_to_html(html_content)
-    
+
+    save_to_html_log(html_content)
+
     # Open HTML file in default web browser
-    os.system("start scan_result.html")
+    html_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scan_result.html")
+    os.startfile(html_file_path)
 
 ###################################################################################################################
 #                                               nmap functionality                                                #
