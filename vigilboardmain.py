@@ -18,6 +18,13 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 css_file_path = os.path.join(script_dir, "HTML Elements", "styles.css")
 icon_file_path = os.path.join(script_dir, "HTML Elements", "vigilboard.ico")
 
+# Define the path to the Logs folder
+logs_folder = os.path.join(script_dir, "Logs")
+
+# Check if the Logs folder exists, and create it if not
+if not os.path.exists(logs_folder):
+    os.makedirs(logs_folder)
+
 # Global variables
 SCAN_TYPE_NAMES = {
     "performScan": "Basic Security Scan",
