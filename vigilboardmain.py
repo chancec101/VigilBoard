@@ -11,6 +11,13 @@ import os
 import re
 import json
 
+# Get the directory of the current Python script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Construct the file paths for CSS file and icon
+css_file_path = os.path.join(script_dir, "HTML Elements", "styles.css")
+icon_file_path = os.path.join(script_dir, "HTML Elements", "vigilboard.ico")
+
 # Global variables
 SCAN_TYPE_NAMES = {
     "performScan": "Basic Security Scan",
@@ -29,7 +36,7 @@ result_text = None
 #it will then either create a new log folder to place logs into, or it will detect a log folder exists and put the log file into it
 def save_to_file(content, prefix="scanlog"):
     timestamp = datetime.now().strftime("%Y-%m-%d %H%M%S")
-    log_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "VigilBoard_Scan_Logs")
+    log_folder = os.path.join(script_dir, "Logs", "VigilBoard_Scan_Logs")
 
     # Check if the log folder exists, and create it if not
     if not os.path.exists(log_folder):
@@ -43,10 +50,10 @@ def save_to_file(content, prefix="scanlog"):
 #function that will pop open an explorer window with your log files there when you press "View Logs"
 def view_logs():
     #get the directory of the currently running script
-    script_directory = os.path.dirname(os.path.abspath(__file__))
-    
-    #open the file explorer at the script directory
-    os.system(f'explorer {script_directory}')
+    log_folder = os.path.join(script_dir, "Logs")
+
+    # Open the file explorer at the log folder
+    os.system(f'explorer {log_folder}')
 
 #function to check if the content of the text box is empty
 def is_text_box_empty():
@@ -59,11 +66,10 @@ def is_text_box_empty():
 # Function to save scan result to HTML file for instant viewing on a web browser upon completion of a scan and ensures the most updated HTML information is displayed
 def save_to_html(content, filename="scan_result.html"):
      # Define the path to the HTML file in the same directory as the script
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    html_file_path = os.path.join(script_dir, filename)
+    html_folder = os.path.join(script_dir, "HTML Elements")
 
     # Write the content to the HTML file, overwriting any existing content
-    with open(html_file_path, "w") as file:
+    with open(os.path.join(html_folder, filename), "w") as file:
         file.write(content)
 
 # Function that will save the scan results to an HTML file and store it as a unique HTML file log
@@ -72,7 +78,7 @@ def save_to_html_log(content, prefix="html_log"):
     timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
 
     # Define the directory for HTML logs
-    log_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "VigilBoard_HTML_Logs")
+    log_folder = os.path.join(script_dir, "Logs", "VigilBoard_HTML_Logs")
 
     # Check if the log folder exists, and create it if not
     if not os.path.exists(log_folder):
@@ -89,14 +95,13 @@ def save_to_html_log(content, prefix="html_log"):
 # Function to open the directory containing HTML logs
 def view_html_logs():
     # Get the directory of the HTML logs
-    html_logs_directory = os.path.join(os.path.dirname(os.path.abspath(__file__)), "VigilBoard_HTML_Logs")
+    html_logs_directory = os.path.join(script_dir, "Logs", "VigilBoard_HTML_Logs")
     
     # Check if the directory exists
     if os.path.exists(html_logs_directory):
-        # Open the file explorer at the HTML logs directory
+        # open file explorer at specified directory
         os.system(f'explorer {html_logs_directory}')
     else:
-        # Display a message if the directory does not exist
         messagebox.showinfo("HTML Logs", "No HTML logs found.")
 
 def parse_scan_results(scan_result):
@@ -134,39 +139,53 @@ def generate_html_content(target_ip, target_url, scan_start_time, scan_finish_ti
 
     # Generate HTML content
     html_content = f"""
-    <h1>Security Scan Results</h1>
-    <p>Scan conducted on: {scan_date}</p>
-    <p>Scan Start Time: {scan_start_time_formatted}</p>
-    <p>Scan Finish Time: {scan_finish_time_formatted}</p>
-    <p>Scan Elapsed Time: {scan_elapsed_time}</p>
-    <p>Target IP: {target_ip}</p>
-    <p>Target URL: {target_url}</p>
-    <p>Scan Type: {scan_type}</p>
-    <h2>Open Ports:</h2>
-    <ul>
-    """
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Security Scan Results</title>
+        <link rel="stylesheet" type="text/css" href="{css_file_path}">
+        <link rel="icon" type="image/x-icon" href="{icon_file_path}">
+    </head>
+    <body>
+        <img src="HTML Elements/ai-art.jpg" class="left-image" alt="Left Image" width="300" height="300">
+        <img src="HTML Elements/ai-art.jpg" class="right-image" alt="Right Image" width="300" height="300">
+        <div class="container">
+            <h1 class="title">Security Scan Results</h1>
+            <p><strong class="target-info">Target IP:</strong> {target_ip}</p>
+            <p><strong class="target-info">Target URL:</strong> {target_url}</p>
+            <p><strong class="scan-info">Scan Type:</strong> {SCAN_TYPE_NAMES.get(scan_type)}</p>
+            <p><strong class="timestamp">Scan Date:</strong> {scan_date}</p>
+            <p><strong class="timestamp">Scan Start Time:</strong> {scan_start_time_formatted}</p>
+            <p><strong class="timestamp">Scan Finish Time:</strong> {scan_finish_time_formatted}</p>
+            <p><strong class="timestamp">Scan Elapsed Time:</strong> {scan_elapsed_time}</p>
+        </div>
+    </body>
+</html>
+"""
 
-    # Check if there are open ports
+    # Add table for open ports
+    html_content += "<h2>Open Ports:</h2>"
     if open_ports:
+        html_content += "<table border='1'><tr><th>Port</th><th>Service</th><th>Product</th><th>Version</th></tr>"
         for port, details in open_ports.items():
-            html_content += f"<li>Port {port}: Service={details['name']}, Product={details['product']}, Version={details['version']}</li>"
+            html_content += f"<tr><td>{port}</td><td>{details['name']}</td><td>{details['product']}</td><td>{details['version']}</td></tr>"
+        html_content += "</table>"
     else:
-        html_content += "<li>No open ports found.</li>"
+        html_content += "<p>No open ports found.</p>"
 
-    html_content += "</ul>"
-    
+    # Add table for OS Fingerprinting Results
     html_content += "<h2>OS Fingerprinting Results:</h2>"
-    html_content += "<ul>"
     if os_guess:
+        html_content += "<table border='1'><tr><th>OS Name</th><th>Accuracy</th></tr>"
         for os_result in os_guess:
-            html_content += f"<li>OS Name: {os_result['name']}, Accuracy: {os_result['accuracy']}</li>"
+            html_content += f"<tr><td>{os_result['name']}</td><td>{os_result['accuracy']}</td></tr>"
+        html_content += "</table>"
     else:
-        html_content += "<li>No OS fingerprinting results found.</li>"
-    html_content += "</ul>"
+        html_content += "<p>No OS fingerprinting results found.</p>"
 
     return html_content
 
-def on_scan_complete(scan_result, scan_start_time, scan_finish_time):
+def on_scan_complete(scan_result, scan_start_time, scan_finish_time, selected_scan_type):
     scan_elapsed_time = scan_finish_time - scan_start_time
 
     # Extract relevant information from the scan result
@@ -191,19 +210,24 @@ def on_scan_complete(scan_result, scan_start_time, scan_finish_time):
         os_guess = scan_result['scan'][target_ip]['osmatch']
 
     # Fetch user-friendly scan type name
-    scan_type = SCAN_TYPE_NAMES.get(scan_var.get(), "Unknown Scan")
+    scan_type = selected_scan_type
 
     # Generate HTML content
     html_content = generate_html_content(target_ip, target_url, scan_start_time, scan_finish_time, scan_elapsed_time, open_ports, os_guess, scan_type)
     
-    # Save HTML content to file
-    save_to_html(html_content)
+    # Save HTML content to file that will be updated and opened
+    html_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scan_result.html")
+    save_to_html(html_content, html_file_path)
 
+    # Save HTML content to a file as a log
     save_to_html_log(html_content)
 
-    # Open HTML file in default web browser
-    html_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scan_result.html")
-    os.startfile(html_file_path)
+    # Check if the HTML file exists before attempting to open it
+    if os.path.exists(html_file_path):
+        # Open HTML file in default web browser
+        os.startfile(html_file_path)
+    else:
+        messagebox.showerror("HTML File Not Found", "The HTML file could not be found.")
 
 ###################################################################################################################
 #                                               nmap functionality                                                #
@@ -335,7 +359,7 @@ def check_security():
         scan_result = str(result)
 
         # Call the callback function with the scan result and finish time
-        on_scan_complete(result, scan_start_time, datetime.now())
+        on_scan_complete(result, scan_start_time, datetime.now(), selected_scan)
 
         result_text.config(state="disabled")
 

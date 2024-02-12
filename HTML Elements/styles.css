@@ -1,0 +1,81 @@
+/* styles.css */
+
+/* Body */
+body {
+    background-color: #f2f2f2; /* Light gray background */
+    color: #333; /* Dark gray text */
+    font-family: Arial, sans-serif; /* Use Arial font */
+}
+
+/* Headings */
+h1 {
+    color: #007bff; /* Blue color for headings */
+}
+
+/* Timestamps */
+.timestamp {
+    color: #28a745; /* Green color for timestamps */
+}
+
+/* IP and URL */
+.ip-url {
+    color: #dc3545; /* Red color for IP and URL */
+}
+
+/* Table styles (assuming tables have 'table' class) */
+table {
+    border-collapse: collapse; /* Collapse table borders */
+    width: 100%; /* Table takes full width */
+}
+
+th, td {
+    border: 1px solid #ccc; /* Gray border for table cells */
+    padding: 8px; /* Padding inside cells */
+}
+
+th {
+    background-color: #007bff; /* Blue background for table headers */
+    color: #fff; /* White text for table headers */
+}
+
+/* OS Fingerprinting Results */
+.os-result {
+    color: #ffc107; /* Yellow color for OS Fingerprinting Results */
+}
+
+/* CSS for left and right images */
+.left-image {
+    position: absolute;
+    left: 125px; /* Adjust as needed */
+    top: 30px; /* Adjust as needed */
+}
+
+.right-image {
+    position: absolute;
+    right: 125px; /* Adjust as needed */
+    top: 30px; /* Adjust as needed */
+}
+
+
+/* Container styles */
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    position: relative; /* Ensure positioning context for absolute positioning of images */
+}
+
+/* Additional styles */
+.title {
+    color: blue;
+    font-size: 24px;
+}
+
+.scan-info {
+    color: green;
+}
+
+.target-info {
+    color: red;
+}
