@@ -431,7 +431,7 @@ def check_security():
             result_text.insert("end", parsed_url.netloc)
 
         result_text.insert("end", "\n\nThis scan can take a few minutes, thank you for your patience.")
-        result_text.insert("end", "\n\nRunning nmap scan...\n\n")
+        result_text.insert("end", "\n\nRunning basic port scan...\n\n")
 
         result_text.config(state="disabled")
 
@@ -546,7 +546,7 @@ def check_security():
             result_text.insert("end", parsed_url.netloc)
 
         result_text.insert("end", "\n\nThis scan can take a few minutes, thank you for your patience.")
-        result_text.insert("end", "\n\nRunning nmap scan...\n\n")
+        result_text.insert("end", "\n\nRunning vulners scan...\n\n")
 
         result_text.config(state="disabled")
 
