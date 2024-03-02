@@ -227,7 +227,131 @@ def on_scan_complete(scan_result, scan_start_time, scan_finish_time, selected_sc
     save_to_html(html_content, html_file_path)
 
     # Save HTML content to a file as a log
-    save_to_html_log(html_content)
+    save_to_html_log(html_content, prefix="html_log")
+
+    # Check if the HTML file exists before attempting to open it
+    if os.path.exists(html_file_path):
+        # Open HTML file in default web browser
+        os.startfile(html_file_path)
+    else:
+        messagebox.showerror("HTML File Not Found", "The HTML file could not be found.")
+
+# Define the parse_vulners_info function
+def parse_vulners_info(vulnerability_info):
+    # Regular expression patterns
+    url_pattern = r'https?://vulners\.com/\w+/[^ \t\n\r\f\v]+'
+    vulnerability_pattern = r'(CVE-\d{4}-\d{4,7})'
+    score_pattern = r'\b(\d+\.\d+)\b(?=\s+https?://)'
+
+    # Initialize lists to store URLs, vulnerability names, and scores
+    urls = []
+    vulnerability_names = []
+    scores = []
+
+    # Iterate over each line of vulnerability_info
+    for line in vulnerability_info:
+        url_match = re.search(url_pattern, line)
+        vulnerability_match = re.search(vulnerability_pattern, line)
+        score_match = re.search(score_pattern, line)
+
+        if url_match and vulnerability_match and score_match:
+            urls.append(url_match.group(0))
+            vulnerability_names.append(vulnerability_match.group(0))
+            score = score_match.group(1)  # Extract the matched group 1 (the score)
+            scores.append(score)
+    
+    return urls, vulnerability_names, scores
+
+
+# Function to generate HTML content
+def generate_vulners_html_content(target_ip, target_url, scan_start_time, scan_finish_time, scan_elapsed_time, open_ports, os_guess, scan_type, result, ip_address, vulnerability_info_dict):
+    # Extract date portion from scan start time
+    scan_date = scan_start_time.strftime("%Y-%m-%d")
+
+    # Format scan start time and finish time to display only the time portion
+    scan_start_time_formatted = scan_start_time.strftime("%H:%M:%S")  
+    scan_finish_time_formatted = scan_finish_time.strftime("%H:%M:%S")
+
+    # Generate HTML content
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+        <head>
+            <title>Security Scan Results</title>
+            <link rel="stylesheet" type="text/css" href="{css_file_path}">
+            <link rel="icon" type="image/x-icon" href="{icon_file_path}">
+        </head>
+        <body>
+            <img src="HTML Elements/ai-art.jpg" class="left-image" alt="Left Image" width="300" height="300">
+            <img src="HTML Elements/ai-art.jpg" class="right-image" alt="Right Image" width="300" height="300">
+            <div class="container">
+                <h1 class="title">Security Scan Results</h1>
+                <p><strong class="target-info">Target IP:</strong> {target_ip}</p>
+                <p><strong class="target-info">Target URL:</strong> {target_url}</p>
+                <p><strong class="scan-info">Scan Type:</strong> {SCAN_TYPE_NAMES.get(scan_type)}</p>
+                <p><strong class="timestamp">Scan Date:</strong> {scan_date}</p>
+                <p><strong class="timestamp">Scan Start Time:</strong> {scan_start_time_formatted}</p>
+                <p><strong class="timestamp">Scan Finish Time:</strong> {scan_finish_time_formatted}</p>
+                <p><strong class="timestamp">Scan Elapsed Time:</strong> {scan_elapsed_time}</p>
+            </div>
+        </body>
+    </html>
+    """
+
+    # Add table for open ports
+    html_content += "<h2>Open Ports:</h2>"
+    if open_ports:
+        html_content += "<table border='1'><tr><th>Port</th><th>Service</th><th>Product</th><th>Version</th></tr>"
+        for port, details in open_ports.items():
+            html_content += f"<tr><td>{port}</td><td>{details['name']}</td><td>{details['product']}</td><td>{details['version']}</td></tr>"
+        html_content += "</table>"
+    else:
+        html_content += "<p>No open ports found.</p>"
+
+    # Add table for OS Fingerprinting Results
+    html_content += "<h2>OS Fingerprinting Results:</h2>"
+    if os_guess:
+        html_content += "<table border='1'><tr><th>OS Name</th><th>Accuracy</th></tr>"
+        for os_result in os_guess:
+            html_content += f"<tr><td>{os_result['name']}</td><td>{os_result['accuracy']}</td></tr>"
+        html_content += "</table>"
+    else:
+        html_content += "<p>No OS fingerprinting results found.</p>"
+
+    # Add title for Vulnerabilities table
+    html_content += "<h2>Vulnerabilities:</h2>"
+
+    # Add table for vulnerabilities
+    html_content += "<table border='1'><tr><th>Port</th><th>Vulnerability</th><th>CVSS Score (range: 0 (low) to 10 (severe))</th><th>URL</th></tr>"
+    for port, vulnerabilities in vulnerability_info_dict.items():
+        for vulnerability in vulnerabilities:
+            # Extract vulnerability information
+            port_number = vulnerability['port']
+            vulnerability_name = vulnerability['vulnerability']
+            cvss_score = vulnerability['cvss_score']
+            vulnerability_url = vulnerability['url']
+            
+            # Ensure cvss_score is numeric
+            cvss_score = float(cvss_score) if cvss_score is not None else None
+            
+            # Format CVSS score (round to 1 decimal place) or set to "N/A"
+            formatted_cvss_score = f"{cvss_score:.1f}" if cvss_score is not None else "N/A"
+            
+            # Add row to the table
+            html_content += f"<tr><td>{port_number}</td><td>{vulnerability_name}</td><td>{formatted_cvss_score}</td><td><a href='{vulnerability_url}'>{vulnerability_url}</a></td></tr>"
+    html_content += "</table>"
+
+
+    return html_content
+
+def on_vulners_scan_complete(html_content):
+    
+    # Save HTML content to file that will be updated and opened
+    html_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scan_result.html")
+    save_to_html(html_content, html_file_path)
+
+    # Save HTML content to a file as a log
+    save_to_html_log(html_content, prefix="html_log")
 
     # Check if the HTML file exists before attempting to open it
     if os.path.exists(html_file_path):
@@ -475,10 +599,46 @@ def check_security():
         result_text.insert("end", "Scan completed at: ")
         result_text.insert("end", t2)
 
-        #writing the text box to a log file
-
         result_text.config(state="normal")
-    
+
+        # Initialize an empty list to store vulnerability information
+        vulnerability_info = []
+
+        # Iterate over the open ports and collect vulnerability information
+        for port, port_info in result['scan'][ip_address]['tcp'].items():
+            if 'script' in port_info and 'vulners' in port_info['script']:
+                for vuln in port_info['script']['vulners'].split('\n'):
+                    vulnerability_info.append(vuln)
+
+        # Convert open_ports to a dictionary
+        open_ports_dict = {port: result['scan'][ip_address]['tcp'][port] for port in open_ports}
+
+        # Initialize an empty dictionary to store vulnerability information by port
+        vulnerability_info_dict = {}
+
+       # Iterate over the open ports and collect vulnerability information
+        for port, port_info in result['scan'][ip_address]['tcp'].items():
+            if 'script' in port_info and 'vulners' in port_info['script']:
+                for vuln in port_info['script']['vulners'].split('\n'):
+                    # Parse the vulnerability information string
+                    urls, names, scores = parse_vulners_info([vuln])
+
+                    # Add the parsed information to the vulnerability_info_dict
+                    if port not in vulnerability_info_dict:
+                        vulnerability_info_dict[port] = []
+                    for url, name, score in zip(urls, names, scores):
+                        vulnerability_info_dict[port].append({
+                            'port': port,  # Include the 'port' key
+                            'vulnerability': name,
+                            'cvss_score': score,
+                            'url': url
+                        })
+
+        # Call generate_vulners_html_content function with vulnerability_info_dict
+        html_content = generate_vulners_html_content(ip_address, parsed_url.netloc if parsed_url.netloc else "", t1, t2, t2 - t1, open_ports_dict, os_guess, selected_scan, result, ip_address, vulnerability_info_dict)
+
+        on_vulners_scan_complete(html_content)
+
         #save the content of the text box to a file only if it's not empty
         if not is_text_box_empty():
             save_to_file(result_text.get("1.0", "end-1c"))
