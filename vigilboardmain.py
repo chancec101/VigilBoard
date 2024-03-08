@@ -111,6 +111,10 @@ def view_html_logs():
     else:
         messagebox.showinfo("HTML Logs", "No HTML logs found.")
 
+#############################################
+#           Port Scan HTML functions        #
+#############################################
+
 def parse_scan_results(scan_result):
     parsed_results = []
 
@@ -236,8 +240,12 @@ def on_scan_complete(scan_result, scan_start_time, scan_finish_time, selected_sc
     else:
         messagebox.showerror("HTML File Not Found", "The HTML file could not be found.")
 
+####################################################
+#         Vulners/Vunerability HTML functions      #
+####################################################
+
 # Define the parse_vulners_info function
-def parse_vulners_info(vulnerability_info):
+def parse_vulners_vuln_info(vulnerability_info):
     # Regular expression patterns
     url_pattern = r'https?://vulners\.com/\w+/[^ \t\n\r\f\v]+'
     vulnerability_pattern = r'(CVE-\d{4}-\d{4,7})'
@@ -264,7 +272,7 @@ def parse_vulners_info(vulnerability_info):
 
 
 # Function to generate HTML content
-def generate_vulners_html_content(target_ip, target_url, scan_start_time, scan_finish_time, scan_elapsed_time, open_ports, os_guess, scan_type, result, ip_address, vulnerability_info_dict):
+def generate_vulners_vuln_html_content(target_ip, target_url, scan_start_time, scan_finish_time, scan_elapsed_time, open_ports, os_guess, scan_type, result, ip_address, vulnerability_info_dict):
     # Extract date portion from scan start time
     scan_date = scan_start_time.strftime("%Y-%m-%d")
 
@@ -341,10 +349,9 @@ def generate_vulners_html_content(target_ip, target_url, scan_start_time, scan_f
             html_content += f"<tr><td>{port_number}</td><td>{vulnerability_name}</td><td>{formatted_cvss_score}</td><td><a href='{vulnerability_url}'>{vulnerability_url}</a></td></tr>"
     html_content += "</table>"
 
-
     return html_content
 
-def on_vulners_scan_complete(html_content):
+def on_vulners_vuln_scan_complete(html_content):
     
     # Save HTML content to file that will be updated and opened
     html_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scan_result.html")
@@ -472,7 +479,7 @@ def check_security():
         else:
             result_text.insert("end", "No open ports found.")
 
-        result_text.insert("end", "\n\nSecurity scan has been completed.\n")
+        result_text.insert("end", "\n\nPort scan has been completed.\n")
 
         t2 = datetime.now()
         result_text.insert("end", "Scan completed at: ")
@@ -593,7 +600,7 @@ def check_security():
         else:
             result_text.insert("end", "No open ports found.")
 
-        result_text.insert("end", "\n\nSecurity scan has been completed.\n")
+        result_text.insert("end", "\n\nVulners scan has been completed.\n")
 
         t2 = datetime.now()
         result_text.insert("end", "Scan completed at: ")
@@ -621,7 +628,7 @@ def check_security():
             if 'script' in port_info and 'vulners' in port_info['script']:
                 for vuln in port_info['script']['vulners'].split('\n'):
                     # Parse the vulnerability information string
-                    urls, names, scores = parse_vulners_info([vuln])
+                    urls, names, scores = parse_vulners_vuln_info([vuln])
 
                     # Add the parsed information to the vulnerability_info_dict
                     if port not in vulnerability_info_dict:
@@ -635,9 +642,9 @@ def check_security():
                         })
 
         # Call generate_vulners_html_content function with vulnerability_info_dict
-        html_content = generate_vulners_html_content(ip_address, parsed_url.netloc if parsed_url.netloc else "", t1, t2, t2 - t1, open_ports_dict, os_guess, selected_scan, result, ip_address, vulnerability_info_dict)
+        html_content = generate_vulners_vuln_html_content(ip_address, parsed_url.netloc if parsed_url.netloc else "", t1, t2, t2 - t1, open_ports_dict, os_guess, selected_scan, result, ip_address, vulnerability_info_dict)
 
-        on_vulners_scan_complete(html_content)
+        on_vulners_vuln_scan_complete(html_content)
 
         #save the content of the text box to a file only if it's not empty
         if not is_text_box_empty():
@@ -696,8 +703,8 @@ def check_security():
             result_text.insert("end", "\nTarget URL: ")
             result_text.insert("end", parsed_url.netloc)
 
-        result_text.insert("end", "\n\nThis scan can take a few minutes, thank you for your patience.")
-        result_text.insert("end", "\n\nRunning nmap scan...\n\n")
+        result_text.insert("end", "\n\nThis scan can take up to a few minutes, thank you for your patience.")
+        result_text.insert("end", "\n\nRunning vulnerability script...\n\n")
 
         result_text.config(state="disabled")
 
@@ -754,15 +761,51 @@ def check_security():
         else:
             result_text.insert("end", "No open ports found.")
 
-        result_text.insert("end", "\n\nSecurity scan has been completed.\n")
+        result_text.insert("end", "\n\nVulnerability scan has been completed.\n")
 
         t2 = datetime.now()
         result_text.insert("end", "Scan completed at: ")
         result_text.insert("end", t2)
 
-        #writing the text box to a log file
-
         result_text.config(state="normal")
+
+        # Initialize an empty list to store vulnerability information
+        vulnerability_info = []
+
+        # Iterate over the open ports and collect vulnerability information
+        for port, port_info in result['scan'][ip_address]['tcp'].items():
+            if 'script' in port_info and 'vulners' in port_info['script']:
+                for vuln in port_info['script']['vulners'].split('\n'):
+                    vulnerability_info.append(vuln)
+
+        # Convert open_ports to a dictionary
+        open_ports_dict = {port: result['scan'][ip_address]['tcp'][port] for port in open_ports}
+
+        # Initialize an empty dictionary to store vulnerability information by port
+        vulnerability_info_dict = {}
+
+       # Iterate over the open ports and collect vulnerability information
+        for port, port_info in result['scan'][ip_address]['tcp'].items():
+            if 'script' in port_info and 'vulners' in port_info['script']:
+                for vuln in port_info['script']['vulners'].split('\n'):
+                    # Parse the vulnerability information string
+                    urls, names, scores = parse_vulners_vuln_info([vuln])
+
+                    # Add the parsed information to the vulnerability_info_dict
+                    if port not in vulnerability_info_dict:
+                        vulnerability_info_dict[port] = []
+                    for url, name, score in zip(urls, names, scores):
+                        vulnerability_info_dict[port].append({
+                            'port': port,  # Include the 'port' key
+                            'vulnerability': name,
+                            'cvss_score': score,
+                            'url': url
+                        })
+
+        # Call generate_vulners_html_content function with vulnerability_info_dict
+        html_content = generate_vulners_vuln_html_content(ip_address, parsed_url.netloc if parsed_url.netloc else "", t1, t2, t2 - t1, open_ports_dict, os_guess, selected_scan, result, ip_address, vulnerability_info_dict)
+
+        on_vulners_vuln_scan_complete(html_content)
     
         #save the content of the text box to a file only if it's not empty
         if not is_text_box_empty():
@@ -773,7 +816,6 @@ def check_security():
         #change the button text back 
         test_button.config(text="Perform Security Test")
         test_button.config(state="normal")  #re-enable the button
-
 
     #use a thread to keep the GUI responsive
     #mapping between scan types and functions
@@ -804,11 +846,11 @@ def close_window():
 
 #create the main window
 root = tk.Tk()
-root.title("VigilBoard Prototype 1.0 by VigilNet")
+root.title("VigilBoard by VigilNet")
 root.configure(bg="white")
 
 #create the VigilBoard logo
-label = tk.Label(root, text="VigilBoard Prototype 1.0 by VigilNet", bg="white", fg="blue")
+label = tk.Label(root, text="VigilBoard by VigilNet", bg="white", fg="blue")
 label.grid(row=0, column=0, columnspan=5, padx=40, pady=10)
 label.config(anchor="center")
 
@@ -849,7 +891,7 @@ result_text.config(yscrollcommand=scrollbar.set)
 scrollbar.grid(row=4, column=3, sticky="ns")
 
 #add description label
-description_text = "VigilBoard Prototype 1.0 is a security tool that performs port scanning and provides information about open ports and the target's operating system. We do not encourage the use of this tool in a malicious manner. Use responsibly."
+description_text = "VigilBoard is a security tool that performs port scanning and provides information about open ports and the target's operating system. We do not encourage the use of this tool in a malicious manner. Use responsibly."
 description_label = tk.Label(root, text=description_text, bg="white", wraplength=400)
 description_label.grid(row=5, column=1, columnspan=1, padx=10, pady=10)
 
