@@ -1,0 +1,29 @@
+Scan conducted on: 2023-12-13 18:21:02.809228
+
+Running nmap scan...
+Open ports:
+21, 22, 23, 25, 53, 80, 111, 139, 445, 513, 514, 2049, 2121, 3306, 5432, 5900, 6000, 8009
+Port 21: Service=ftp, Product=vsftpd, Version=2.3.4
+Port 22: Service=ssh, Product=OpenSSH, Version=4.7p1 Debian 8ubuntu1
+Port 23: Service=telnet, Product=Linux telnetd, Version=
+Port 25: Service=smtp, Product=Postfix smtpd, Version=
+Port 53: Service=domain, Product=ISC BIND, Version=9.4.2
+Port 80: Service=http, Product=Apache httpd, Version=2.2.8
+Port 111: Service=rpcbind, Product=, Version=2
+Port 139: Service=netbios-ssn, Product=Samba smbd, Version=3.X - 4.X
+Port 445: Service=netbios-ssn, Product=Samba smbd, Version=3.X - 4.X
+Port 513: Service=login, Product=, Version=
+Port 514: Service=shell, Product=Netkit rshd, Version=
+Port 2049: Service=nfs, Product=, Version=2-4
+Port 2121: Service=ftp, Product=ProFTPD, Version=1.3.1
+Port 3306: Service=mysql, Product=MySQL, Version=5.0.51a-3ubuntu5
+Port 5432: Service=postgresql, Product=PostgreSQL DB, Version=8.3.0 - 8.3.7
+Port 5900: Service=vnc, Product=VNC, Version=
+Port 6000: Service=X11, Product=, Version=
+Port 8009: Service=ajp13, Product=Apache Jserv, Version=
+OS Fingerprinting Results:
+  OS Name: Linux 2.6.9 - 2.6.33, Accuracy: 100
+
+
+Security scan has been completed.
+Scan completed at: 2023-12-13 18:21:16.594580
