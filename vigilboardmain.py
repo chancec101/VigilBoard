@@ -1,6 +1,7 @@
 import tkinter as tk                #using tkinter as our gui
 from tkinter import messagebox
 from tkinter import Scrollbar
+from tkinter import simpledialog
 import nmap                         #nmap for port scanning
 import socket
 from datetime import datetime
@@ -10,6 +11,12 @@ from threading import Thread
 import os
 import re
 import json
+import boto3
+import hashlib
+import hmac
+import base64
+import botocore
+
 
 # Get the directory of the current Python script
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -841,6 +848,155 @@ def close_window():
     root.destroy()
 
 ###################################################################################################################
+#                                               Login Functionality                                               #
+###################################################################################################################
+
+# AWS Cognito configuration
+cognito_user_pool_id = 'us-east-2_3kyYLaR4e'
+cognito_client_id = '3boqnps5uqd0tu07rr2p20fbvo'
+cognito_client_secret = '1e7i1uk9qad51ll1n6tokveutq5eg1g4oc6mnfj89nms1otnjfk'
+region_name = 'us-east-2'
+user_pool_client = boto3.client('cognito-idp', region_name=region_name)
+
+# Function to authenticate the user using AWS Cognito
+# Function to authenticate the user using AWS Cognito
+
+
+def authenticate_user(username, password):
+    try:
+        secret_hash = calculate_secret_hash(username)
+        response = user_pool_client.initiate_auth(
+            ClientId=cognito_client_id,
+            AuthFlow='USER_PASSWORD_AUTH',
+            AuthParameters={
+                'USERNAME': username,
+                'PASSWORD': password,
+                'SECRET_HASH': secret_hash
+            },
+            ClientMetadata={
+                'username': username,
+                'password': password
+            }
+        )
+        return response['AuthenticationResult']['AccessToken']
+    except botocore.exceptions.ClientError as e:
+        error_code = e.response['Error']['Code']
+        if error_code == 'NotAuthorizedException':
+            print("NotAuthorizedException:", e)
+        elif error_code == 'UserNotConfirmedException':
+            print("UserNotConfirmedException:", e)
+        else:
+            print("Unexpected error:", e)
+        return None
+    except Exception as e:
+        messagebox.showerror("Authentication Error", f"Failed to authenticate user: {e}")
+        return None
+
+
+
+
+def calculate_secret_hash(username):
+    message = username + cognito_client_id
+    dig = hmac.new(str(cognito_client_secret).encode('utf-8'), msg=str(message).encode('utf-8'), digestmod=hashlib.sha256).digest()
+    secret_hash = base64.b64encode(dig).decode()
+    return secret_hash
+
+def sign_up_user(username, password, email):
+    try:
+        secret_hash = calculate_secret_hash(username)
+        response = user_pool_client.sign_up(
+            ClientId=cognito_client_id,
+            Username=username,
+            Password=password,
+            UserAttributes=[
+                {
+                    'Name': 'email',
+                    'Value': email
+                },
+                {
+                    'Name': 'preferred_username',  # Add the required attributes
+                    'Value': username
+                },
+                {
+                    'Name': 'name',
+                    'Value': username
+                }
+            ],
+            SecretHash=secret_hash
+        )
+        print(f"User {username} successfully signed up!")
+        return True
+    except Exception as e:
+        print(f"Error signing up user: {e}")
+        return False
+
+def confirm_signup(username, confirmation_code):
+    try:
+        secret_hash = calculate_secret_hash(username)
+        response = user_pool_client.confirm_sign_up(
+            ClientId=cognito_client_id,
+            Username=username,
+            ConfirmationCode=confirmation_code,
+            SecretHash=secret_hash  # Include the secret hash
+        )
+        print(f"User {username} confirmed sign up!")
+        return True
+    except Exception as e:
+        print(f"Error confirming sign up: {e}")
+        return False
+
+# Function to switch to the login page
+def switch_to_login():
+    signup_frame.grid_forget()  # Hide signup frame
+    main_frame.grid_forget()  # Hide main frame
+    login_frame.grid()  # Show login frame
+
+# Function to switch to the main page after successful login
+def switch_to_main_page():
+    login_frame.grid_forget()  # Hide login frame
+    signup_frame.grid_forget()  # Hide signup frame
+    main_frame.grid()  # Show main frame
+
+# Function to handle login button click
+def handle_login():
+    username = login_username_entry.get()
+    password = login_password_entry.get()
+
+    # Authenticate the user using Cognito
+    access_token = authenticate_user(username, password)
+
+    if access_token:
+        print(f"Authenticated! Access Token: {access_token}")
+        switch_to_main_page()
+    else:
+        messagebox.showinfo("Authentication", "User authentication failed. Please check your credentials.")
+
+# Function to handle signup button click
+def handle_signup():
+    username = signup_username_entry.get()
+    password = signup_password_entry.get()
+    email = signup_email_entry.get()
+
+    # Sign up the new user using Cognito
+    if sign_up_user(username, password, email):
+        confirmation_code = simpledialog.askstring("Confirmation Code", "Enter confirmation code sent to your email:")
+        if confirmation_code:
+            if confirm_signup(username, confirmation_code):
+                messagebox.showinfo("Signup", f"User {username} successfully signed up and confirmed!")
+            else:
+                messagebox.showinfo("Signup", f"Failed to confirm sign up. Please check your information.")
+        else:
+            messagebox.showinfo("Signup", "Confirmation code is required.")
+    else:
+        messagebox.showinfo("Signup", f"Failed to sign up user. Please check your information.")
+
+# Function to switch to the signup page
+def switch_to_signup():
+    login_frame.grid_forget()  # Hide login frame
+    main_frame.grid_forget()  # Hide main frame
+    signup_frame.grid()  # Show signup frame
+
+###################################################################################################################
 #                                               GUI Display                                                       #
 ###################################################################################################################
 
@@ -849,52 +1005,100 @@ root = tk.Tk()
 root.title("VigilBoard by VigilNet")
 root.configure(bg="white")
 
+# Create frames for login, signup, and main pages
+login_frame = tk.Frame(root)
+signup_frame = tk.Frame(root)
+main_frame = tk.Frame(root)
+
 #create the VigilBoard logo
-label = tk.Label(root, text="VigilBoard by VigilNet", bg="white", fg="blue")
+label = tk.Label(main_frame, text="VigilBoard by VigilNet", bg="white", fg="blue")
 label.grid(row=0, column=0, columnspan=5, padx=40, pady=10)
 label.config(anchor="center")
 
 #entry for URL or IP address
-url_or_ip_label = tk.Label(root, text="Enter URL or IP Address:")
+url_or_ip_label = tk.Label(main_frame, text="Enter URL or IP Address:")
 url_or_ip_label.grid(row=1, column=0, padx=10, pady=10)
-url_or_ip_entry = tk.Entry(root, width=50)
+url_or_ip_entry = tk.Entry(main_frame, width=50)
 url_or_ip_entry.grid(row=1, column=1, padx=10, pady=10)
 
 # Add radio buttons for scan options
 scan_var = tk.StringVar(value="none_selected")
-perform_scan_radio = tk.Radiobutton(root, text="Perform Security Scan", variable=scan_var, value="performScan")
+perform_scan_radio = tk.Radiobutton(main_frame, text="Perform Security Scan", variable=scan_var, value="performScan")
 perform_scan_radio.grid(row=2, column=0, padx=10, pady=10)
-nmap_vulners_radio = tk.Radiobutton(root, text="Vulners Scripting Scan", variable=scan_var, value="nmapVulners")
+nmap_vulners_radio = tk.Radiobutton(main_frame, text="Vulners Scripting Scan", variable=scan_var, value="nmapVulners")
 nmap_vulners_radio.grid(row=2, column=1, padx=10, pady=10)
-nmap_vuln_radio = tk.Radiobutton(root, text="Vuln Scripting Scan", variable=scan_var, value="nmapVuln")
+nmap_vuln_radio = tk.Radiobutton(main_frame, text="Vuln Scripting Scan", variable=scan_var, value="nmapVuln")
 nmap_vuln_radio.grid(row=2, column=2, padx=10, pady=10)
 
 #create a button to perform the security test
-test_button = tk.Button(root, text="Perform Security Test", command=check_security)
+test_button = tk.Button(main_frame, text="Perform Security Test", command=check_security)
 test_button.grid(row=3, column=0, columnspan=2, padx=10, pady=10)
 
 #create a button to view logs
-view_logs_button = tk.Button(root, text="View Logs", command=view_logs)
+view_logs_button = tk.Button(main_frame, text="View Logs", command=view_logs)
 view_logs_button.grid(row=3, column=1, columnspan=2, padx=10, pady=10)
 
 # Create the "View HTML Logs" button
-view_html_logs_button = tk.Button(root, text="View HTML Logs", command=view_html_logs)
+view_html_logs_button = tk.Button(main_frame, text="View HTML Logs", command=view_html_logs)
 view_html_logs_button.grid(row=3, column=2, padx=10, pady=10)
 
 #create a text box to display port scan results
-result_text = tk.Text(root, height=20, width=80, state="disabled")
+result_text = tk.Text(main_frame, height=20, width=80, state="disabled")
 result_text.grid(row=4, column=0, columnspan=3, padx=10, pady=10)
 
 #create a scrollbar for when the output gets long in the text box
-scrollbar = Scrollbar(root, command=result_text.yview)
+scrollbar = Scrollbar(main_frame, command=result_text.yview)
 result_text.config(yscrollcommand=scrollbar.set)
 scrollbar.grid(row=4, column=3, sticky="ns")
 
 #add description label
 description_text = "VigilBoard is a security tool that performs port scanning and provides information about open ports and the target's operating system. We do not encourage the use of this tool in a malicious manner. Use responsibly."
-description_label = tk.Label(root, text=description_text, bg="white", wraplength=400)
+description_label = tk.Label(main_frame, text=description_text, bg="white", wraplength=400)
 description_label.grid(row=5, column=1, columnspan=1, padx=10, pady=10)
 
+# Widgets for the login page
+login_username_label = tk.Label(login_frame, text="Username:")
+login_username_label.grid(pady=40)  # Adjust pady for spacing
+login_username_entry = tk.Entry(login_frame, width=90)  # Adjust width
+login_username_entry.grid(pady=40)
+
+login_password_label = tk.Label(login_frame, text="Password:")
+login_password_label.grid(pady=20)  # Adjust pady for spacing
+login_password_entry = tk.Entry(login_frame, width=40, show="*")  # Adjust width
+login_password_entry.grid(pady=20)
+
+# create a button to perform the login
+login_button = tk.Button(login_frame, text="Login", command=handle_login)
+login_button.grid(pady=20)
+
+# Create a button to switch to the signup page from the login frame
+switch_to_signup_button = tk.Button(login_frame, text="Switch to Signup", command=switch_to_signup)
+switch_to_signup_button.grid(pady=10)
+
+# Widgets for the signup page
+signup_username_label = tk.Label(signup_frame, text="Username:")
+signup_username_label.grid(pady=40)
+signup_username_entry = tk.Entry(signup_frame, width=90)
+signup_username_entry.grid(pady=40)
+
+signup_password_label = tk.Label(signup_frame, text="Password:")
+signup_password_label.grid(pady=10)
+signup_password_entry = tk.Entry(signup_frame, width=30, show="*")
+signup_password_entry.grid(pady=10)
+
+signup_email_label = tk.Label(signup_frame, text="Email:")
+signup_email_label.grid(pady=10)
+signup_email_entry = tk.Entry(signup_frame, width=30)
+signup_email_entry.grid(pady=10)
+
+signup_button = tk.Button(signup_frame, text="Sign Up", command=handle_signup)
+signup_button.grid(pady=10)
+
+# Create a button to switch to the login page from signup
+switch_to_login_button = tk.Button(signup_frame, text="Switch to Login", command=switch_to_login)
+switch_to_login_button.grid(pady=10)
+
 #start the GUI
+switch_to_login()  # Start with the login page
 root.protocol("WM_DELETE_WINDOW", close_window)
 root.mainloop()
