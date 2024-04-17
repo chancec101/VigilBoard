@@ -859,9 +859,6 @@ region_name = 'us-east-2'
 user_pool_client = boto3.client('cognito-idp', region_name=region_name)
 
 # Function to authenticate the user using AWS Cognito
-# Function to authenticate the user using AWS Cognito
-
-
 def authenticate_user(username, password):
     try:
         secret_hash = calculate_secret_hash(username)
@@ -949,6 +946,7 @@ def confirm_signup(username, confirmation_code):
 def switch_to_login():
     signup_frame.grid_forget()  # Hide signup frame
     main_frame.grid_forget()  # Hide main frame
+    reset_password_frame.grid_forget()  # Hide reset password frame
     login_frame.grid()  # Show login frame
 
 # Function to switch to the main page after successful login
@@ -990,11 +988,107 @@ def handle_signup():
     else:
         messagebox.showinfo("Signup", f"Failed to sign up user. Please check your information.")
 
+# Function to handle reset password button click
+def handle_reset_password():
+    username = reset_username_entry.get()
+    
+    # Initiate the password reset process
+    try:
+        secret_hash = calculate_secret_hash(username)
+        response = user_pool_client.forgot_password(
+            ClientId=cognito_client_id,
+            Username=username,
+            SecretHash=secret_hash  # Include the secret hash
+        )
+        messagebox.showinfo("Reset Password", "Password reset initiated. Check your email for further instructions.")
+        
+        # Hide the username entry field and the reset password button
+        reset_username_label.grid_forget()
+        reset_username_entry.grid_forget()
+        reset_password_button.grid_forget()
+        
+        # Show the verification code entry field
+        verification_code_label.grid(row=0, column=0, pady=10)
+        verification_code_entry.grid(row=0, column=1, pady=10)
+        
+        # Show the new password label and entry field
+        new_password_label.grid(row=1, column=0, pady=10)
+        new_password_entry.grid(row=1, column=1, pady=10)
+        
+        # Show the confirm button
+        confirm_button.grid(row=2, column=0, columnspan=2, pady=10)  # Adjust row number
+        
+    except botocore.exceptions.ClientError as e:
+        error_code = e.response['Error']['Code']
+        if error_code == 'UserNotFoundException':
+            print("User not found.")
+        else:
+            print("Unexpected error:", e)
+
+# Function to confirm the verification code and reset the password
+def confirm_reset_password():
+    username = reset_username_entry.get()
+    verification_code = verification_code_entry.get()
+    new_password = new_password_entry.get()  # Retrieve the new password entered by the user
+    
+    # Validate the verification code
+    if not verification_code.isdigit() or len(verification_code) != 6:
+        messagebox.showinfo("Invalid Code", "Invalid verification code. Please enter a 6-digit number.")
+        return
+    
+    try:
+        secret_hash = calculate_secret_hash(username)  # Calculate the secret hash
+        
+        response = user_pool_client.confirm_forgot_password(
+            ClientId=cognito_client_id,
+            Username=username,
+            ConfirmationCode=verification_code,
+            Password=new_password,  # Use the new password entered by the user
+            SecretHash=secret_hash
+        )
+        messagebox.showinfo("Password Reset Successful", "Password reset successfully. You can now login with your new password.")
+        
+        # Optionally, you can switch back to the login page or perform any other action here
+        
+        # Hide the verification code label and entry field
+        verification_code_label.grid_forget()
+        verification_code_entry.grid_forget()
+        
+        # Hide the new password label and entry field
+        new_password_label.grid_forget()
+        new_password_entry.grid_forget()
+        
+        # Forget the confirm button
+        confirm_button.grid_forget()
+        
+    except botocore.exceptions.ClientError as e:
+        error_code = e.response['Error']['Code']
+        if error_code == 'ExpiredCodeException':
+            print("The verification code has expired.")
+        elif error_code == 'CodeMismatchException':
+            print("The verification code is incorrect.")
+        else:
+            print("Unexpected error:", e)
+
 # Function to switch to the signup page
 def switch_to_signup():
     login_frame.grid_forget()  # Hide login frame
     main_frame.grid_forget()  # Hide main frame
     signup_frame.grid()  # Show signup frame
+
+# Function to switch to the reset password page
+def switch_to_reset_password():
+    login_frame.grid_forget()  # Hide login frame
+    signup_frame.grid_forget()  # Hide signup frame
+    main_frame.grid_forget()  # Hide main frame
+    reset_password_frame.grid()  # Show reset password frame
+    # Clear the entry fields
+    reset_username_entry.delete(0, 'end')
+    verification_code_entry.delete(0, 'end')
+    new_password_entry.delete(0, 'end')
+    # Hide the new password label and entry initially
+    new_password_label.grid_forget()
+    new_password_entry.grid_forget()
 
 ###################################################################################################################
 #                                               GUI Display                                                       #
@@ -1009,6 +1103,7 @@ root.configure(bg="white")
 login_frame = tk.Frame(root)
 signup_frame = tk.Frame(root)
 main_frame = tk.Frame(root)
+reset_password_frame = tk.Frame(root)
 
 #create the VigilBoard logo
 label = tk.Label(main_frame, text="VigilBoard by VigilNet", bg="white", fg="blue")
@@ -1075,6 +1170,10 @@ login_button.grid(pady=20)
 switch_to_signup_button = tk.Button(login_frame, text="Switch to Signup", command=switch_to_signup)
 switch_to_signup_button.grid(pady=10)
 
+# Create a button to reset the password
+reset_password_button_login = tk.Button(login_frame, text="Reset Password", command=switch_to_reset_password)
+reset_password_button_login.grid(pady=10)
+
 # Widgets for the signup page
 signup_username_label = tk.Label(signup_frame, text="Username:")
 signup_username_label.grid(pady=40)
@@ -1097,6 +1196,50 @@ signup_button.grid(pady=10)
 # Create a button to switch to the login page from signup
 switch_to_login_button = tk.Button(signup_frame, text="Switch to Login", command=switch_to_login)
 switch_to_login_button.grid(pady=10)
+
+# Password reset widget
+reset_username_label = tk.Label(reset_password_frame, text="Username:")
+reset_username_label.grid(row=0, column=0, pady=40)
+reset_username_entry = tk.Entry(reset_password_frame, width=90)
+reset_username_entry.grid(row=0, column=1, pady=40)
+
+# Create a button to initiate the password reset
+reset_password_button = tk.Button(reset_password_frame, text="Reset Password", command=handle_reset_password)
+reset_password_button.grid(row=1, column=0, columnspan=2, pady=10)
+
+# Create a label and entry field for verification code
+verification_code_label = tk.Label(reset_password_frame, text="Verification Code:")
+verification_code_label.grid(row=2, column=0, pady=10)
+verification_code_entry = tk.Entry(reset_password_frame, width=40)
+verification_code_entry.grid(row=2, column=1, pady=10)
+
+# Create a label and entry field for new password
+new_password_label = tk.Label(reset_password_frame, text="New Password:")
+new_password_label.grid(row=3, column=0, pady=10)
+new_password_entry = tk.Entry(reset_password_frame, width=40, show="*")
+new_password_entry.grid(row=3, column=1, pady=10)
+
+# Create a confirm button for verification code
+confirm_button = tk.Button(reset_password_frame, text="Confirm", command=confirm_reset_password)
+confirm_button.grid(row=4, column=0, columnspan=2, pady=10)
+# In the handle_reset_password function, after showing the verification code and new password fields, show the confirm button
+confirm_button.grid(row=4, column=0, columnspan=2, pady=10)  # Show the confirm button
+# In the confirm_reset_password function, after hiding the verification code and new password fields, hide the confirm button again
+confirm_button.grid_forget()  # Hide the confirm button again
+# In the confirm_reset_password function, adjust the row number for the confirm button
+confirm_button.grid(row=5, column=0, columnspan=2, pady=10)  # Adjust row number
+
+# Create a button to switch to the login page from reset password
+switch_to_login_button = tk.Button(reset_password_frame, text="Back to Login", command=switch_to_login)
+switch_to_login_button.grid(row=5, column=0, columnspan=2, pady=10)
+
+# Hide verification code label and entry initially
+verification_code_label.grid_forget()
+verification_code_entry.grid_forget()
+
+# Hide the new password label, entry field, and "Set New Password" button initially
+new_password_label.grid_forget()
+new_password_entry.grid_forget()
 
 #start the GUI
 switch_to_login()  # Start with the login page
